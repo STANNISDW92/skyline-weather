@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Skyline Weather</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand">Skyline Weather</div>
+    <div class="controls">
+      <div class="search">
+        <input id="q" type="search" placeholder="Search a city" autocomplete="off" aria-label="Search a city">
+        <ul id="results" class="results" hidden></ul>
+      </div>
+      <button id="locate" class="btn" type="button" title="Use my location">My location</button>
+      <div class="units" role="group" aria-label="Temperature units">
+        <button id="uC" type="button" aria-pressed="true">°C</button>
+        <button id="uF" type="button" aria-pressed="false">°F</button>
+      </div>
+    </div>
+  </header>
+
+  <p id="status" class="status">Loading forecast…</p>
+
+  <section class="now" id="now" hidden>
+    <div>
+      <h1 class="place" id="place"></h1>
+      <div class="temp num" id="temp"></div>
+      <div class="cond" id="cond"></div>
+    </div>
+    <svg class="big-icon" id="bigIcon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+    <div class="facts">
+      <div><span>Feels like</span><b class="num" id="feels"></b></div>
+      <div><span>Humidity</span><b class="num" id="hum"></b></div>
+      <div><span>Wind</span><b class="num" id="wind"></b></div>
+      <div><span>Sunrise / sunset</span><b class="num" id="sun"></b></div>
+    </div>
+  </section>
+
+  <section class="panel" id="hourlyPanel" hidden>
+    <h2>Next 24 hours</h2>
+    <div class="chart-wrap" id="chart"></div>
+  </section>
+
+  <section class="panel" id="dailyPanel" hidden>
+    <h2>7-day forecast</h2>
+    <ul class="days" id="days"></ul>
+  </section>
+
+  <footer>Data from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></footer>
+</main>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
