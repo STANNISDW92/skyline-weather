@@ -17,17 +17,21 @@ There is no test suite, linter, or formatter configured.
 
 ## Architecture
 
-A no-framework, single-page vanilla JS app bundled with Vite (the only dependency). Everything lives in three files: `index.html` (static markup with fixed element IDs), `src/main.js` (all logic), and `src/style.css` (imported from `main.js`).
+A React 19 single-page app bundled with Vite (`@vitejs/plugin-react`, configured in `vite.config.js`). `index.html` only provides `<div id="root">`; `src/main.jsx` mounts `App` in `StrictMode` and imports `src/style.css`.
 
-**Data flow.** `main.js` holds one module-level `state` object (`unit`, `loc`, `data`). Every user action (city pick, geolocation, unit toggle) updates `state` and calls `loadForecast()`, which refetches from the Open-Meteo forecast API and then calls `render()` → `renderHourly()` + `renderDaily()`. Rendering is a full rebuild of each section via `innerHTML`; there is no diffing or incremental update.
+- `src/api.js` — all Open-Meteo calls: `fetchForecast(loc, unit, signal)` and `searchCities(name, signal)` (normalizes results to `{ name, admin, country, lat, lon }`).
+- `src/weather.js` — the `WMO` code table (`wmo(code)` → `[label, iconKind]`) and `fmtTemp` / `fmtTime`.
+- `src/App.jsx` — owns all state and the header controls (location button, °C/°F toggle).
+- `src/components/` — `CitySearch`, `CurrentConditions`, `HourlyChart`, `DailyForecast`, plus `WeatherIcon` (`IconShapes` is the bare SVG contents, reused inside the hourly chart's SVG).
 
-- **Units are converted by the API, not the client.** Switching °C/°F refetches with `temperature_unit` / `wind_speed_unit` query params. Don't add client-side conversion.
+**Data flow.** `App` holds `unit` and `loc`; a `useEffect` on `[loc, unit]` calls `fetchForecast` (aborting the previous request on change) and stores the response in `data`. The location/unit that produced the current `data` are kept separately (`dataLoc`, `dataUnit`), so if a refetch fails the old forecast stays on screen with its matching labels. The three display components are pure functions of `data`; nothing renders until the first fetch succeeds. Status and error messages all go through `showStatus(msg, isError)`; `CitySearch` reports failures via its `onError` prop.
+
+- **Units are converted by the API, not the client.** Switching °C/°F refetches with `temperature_unit` / `wind_speed_unit` params. Don't add client-side conversion.
 - **Persistence:** `unit` and `loc` are saved to `localStorage` (all access wrapped in try/catch). The default location is Toronto.
-- **External APIs (no key):** `api.open-meteo.com/v1/forecast` for weather, `geocoding-api.open-meteo.com/v1/search` for city search (debounced 250ms, previous request aborted via `AbortController`). Times come back in the location's local timezone (`timezone: "auto"`).
-- **Weather codes:** the `WMO` table maps WMO codes to `[label, iconKind]`; `icon(kind, isDay)` returns inline SVG fragments for those kinds. Add new conditions there.
-- **Charts are hand-built SVG strings** — the 24-hour chart in `renderHourly()` (fixed 720×210 viewBox, labels every 3rd hour) and the 7-day range bars in `renderDaily()` (positioned by percentage across the week's min/max). No charting library.
-- **Sections** (`#now`, `#hourlyPanel`, `#dailyPanel`) start `hidden` in the HTML and are revealed on first successful render; errors go to `#status` via `setStatus(msg, isError)`.
+- **City search** debounces 250ms, needs ≥2 characters, aborts the in-flight request on each new search; Enter picks the first result, Escape or an outside click closes the list.
+- **Times** come back in the location's local timezone (`timezone: "auto"`).
+- **Charts are hand-built SVG** — the 24-hour chart (fixed 720×210 viewBox, labels every 3rd hour) and the 7-day range bars (positioned by percentage across the week's min/max). No charting library.
 
-**Theming.** All colors are CSS custom properties on `:root` in `style.css`, with dark-mode overrides under `prefers-color-scheme: dark` (guarded by `:root:not([data-theme="light"])`) and duplicated under `:root[data-theme="dark"]`. SVG icons and charts reference these variables (`var(--accent)`, `var(--warm)`, `var(--rain)`, etc.), so new colors should be added as tokens in both light and dark blocks rather than hard-coded.
+**Theming.** All colors are CSS custom properties on `:root` in `style.css`, with dark-mode overrides under `prefers-color-scheme: dark` (guarded by `:root:not([data-theme="light"])`) and duplicated under `:root[data-theme="dark"]`. Icons and charts reference these variables (`var(--accent)`, `var(--warm)`, `var(--rain)`, etc.), so new colors should be added as tokens in both light and dark blocks rather than hard-coded. Styling is plain class names in `style.css`; the JSX keeps the original class names and markup structure.
 
-**Escaping.** User-visible strings from the geocoding API (city/region names) are inserted with `textContent`/`append`, not `innerHTML`. Keep it that way when touching search results or the place heading.
+**Text rendering gotcha.** Values like `"7:05 AM / 4:57 PM"` are built as a single template string rather than JSX like `{a} / {b}`: separate text nodes shape slightly differently in Chrome, which shifted pixels compared to the pre-React version.
