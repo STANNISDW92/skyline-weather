@@ -1,0 +1,29 @@
+[project]
+name = "skyline-ml"
+version = "0.1.0"
+description = "Forecast-accuracy data and baselines for Skyline Weather"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=3.1.1",
+    "pyarrow>=26.0.1",
+    "requests>=2.34.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
