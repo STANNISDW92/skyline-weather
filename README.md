@@ -4,7 +4,7 @@ A small React weather app: city search, current conditions, a 24-hour temperatur
 
 ## Run locally
 
-Requires Node.js 18 or newer.
+Requires Node.js 22 or newer.
 
 ```bash
 npm install
@@ -20,6 +20,15 @@ npm run build     # outputs to dist/
 npm run preview   # serves the built site locally
 ```
 
+## Test
+
+```bash
+npm test             # run once
+npm run test:watch   # re-run on change
+```
+
+GitHub Actions runs the tests and the build on every push and pull request.
+
 ## Project layout
 
 ```
@@ -30,4 +39,5 @@ src/api.js          Open-Meteo forecast and geocoding calls
 src/weather.js      weather-code labels and formatters
 src/components/     CitySearch, CurrentConditions, HourlyChart, DailyForecast, WeatherIcon
 src/style.css       styles and light/dark theme tokens
+src/test/           test setup and a mocked Open-Meteo response
 ```

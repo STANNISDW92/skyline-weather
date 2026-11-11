@@ -13,5 +13,15 @@ const WMO = {
 };
 export const wmo = c => WMO[c] || ["Unknown", "cloud"];
 
+// Indices into hourly.time for up to 24 hours, starting at the hour containing
+// currentTime (ISO "YYYY-MM-DDTHH:MM", local to the forecast location).
+// Falls back to the first hour if currentTime is past the end of the data.
+export function next24HourIndices(times, currentTime) {
+  const nowHour = currentTime.slice(0, 13);
+  let start = times.findIndex(t => t.slice(0, 13) >= nowHour);
+  if (start < 0) start = 0;
+  return Array.from({ length: 24 }, (_, i) => start + i).filter(i => i < times.length);
+}
+
 export const fmtTemp = t => `${Math.round(t)}°`;
 export const fmtTime = iso => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });

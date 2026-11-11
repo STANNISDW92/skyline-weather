@@ -1,15 +1,12 @@
 import { IconShapes } from "./WeatherIcon.jsx";
-import { wmo, fmtTemp } from "../weather.js";
+import { wmo, fmtTemp, next24HourIndices } from "../weather.js";
 
 const W = 720, H = 210, padX = 24, top = 46, bottom = 150;
 
 // Temperature line for the next 24 hours, labelled every third hour.
 export default function HourlyChart({ data }) {
   const h = data.hourly;
-  const nowHour = data.current.time.slice(0, 13);
-  let start = h.time.findIndex(t => t.slice(0, 13) >= nowHour);
-  if (start < 0) start = 0;
-  const idx = Array.from({ length: 24 }, (_, i) => start + i).filter(i => i < h.time.length);
+  const idx = next24HourIndices(h.time, data.current.time);
   const temps = idx.map(i => h.temperature_2m[i]);
   const min = Math.min(...temps), max = Math.max(...temps), span = Math.max(max - min, 1);
 

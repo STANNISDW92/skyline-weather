@@ -4,23 +4,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Requires Node.js 18+.
+Requires Node.js 22+ (the test tooling — jsdom, jest-dom — needs it; CI runs Node 22).
 
 ```bash
 npm install
-npm run dev       # Vite dev server at http://localhost:5173
-npm run build     # production build to dist/
-npm run preview   # serve the built dist/ locally
+npm run dev                          # Vite dev server at http://localhost:5173
+npm run build                        # production build to dist/
+npm run preview                      # serve the built dist/ locally
+npm test                             # Vitest, single run
+npm run test:watch                   # Vitest watch mode
+npx vitest run src/weather.test.js   # one file
+npx vitest run -t "next24HourIndices" # tests whose name matches
 ```
 
-There is no test suite, linter, or formatter configured.
+No linter or formatter is configured. `.github/workflows/ci.yml` runs `npm ci`, `npm test` and `npm run build` on every push and pull request.
+
+## Tests
+
+Vitest + React Testing Library, configured in the `test` block of `vite.config.js` (jsdom environment, setup in `src/test/setup.js`). Test files sit next to the code as `*.test.js(x)`.
+
+- `src/test/forecastFixture.js` exports `makeForecast(overrides)`, an Open-Meteo-shaped response (week of Tue 2026-11-10). Use it rather than hand-building `data` objects.
+- To test `App`, stub the network with `vi.stubGlobal("fetch", ...)`; `setup.js` unstubs globals, restores mocks and clears `localStorage` after each test.
+- `execArgv: ["--no-experimental-webstorage"]` in the test config is required: on Node 25+ Node's own `localStorage` global otherwise hides jsdom's, and because the app wraps storage in try/catch, persistence would silently go untested.
+- Weekday labels depend on the runtime locale, so tests derive expected names with `toLocaleDateString` instead of hard-coding them.
 
 ## Architecture
 
 A React 19 single-page app bundled with Vite (`@vitejs/plugin-react`, configured in `vite.config.js`). `index.html` only provides `<div id="root">`; `src/main.jsx` mounts `App` in `StrictMode` and imports `src/style.css`.
 
 - `src/api.js` — all Open-Meteo calls: `fetchForecast(loc, unit, signal)` and `searchCities(name, signal)` (normalizes results to `{ name, admin, country, lat, lon }`).
-- `src/weather.js` — the `WMO` code table (`wmo(code)` → `[label, iconKind]`) and `fmtTemp` / `fmtTime`.
+- `src/weather.js` — pure helpers: the `WMO` code table (`wmo(code)` → `[label, iconKind]`), `fmtTemp` / `fmtTime`, and `next24HourIndices(times, currentTime)` (which hours the chart shows). Keep testable logic here rather than inside components.
 - `src/App.jsx` — owns all state and the header controls (location button, °C/°F toggle).
 - `src/components/` — `CitySearch`, `CurrentConditions`, `HourlyChart`, `DailyForecast`, plus `WeatherIcon` (`IconShapes` is the bare SVG contents, reused inside the hourly chart's SVG).
 
