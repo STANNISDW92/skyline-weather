@@ -81,6 +81,17 @@ describe("App with a mocked Open-Meteo response", () => {
     expect(url.searchParams.get("forecast_days")).toBe("7");
     expect(url.searchParams.get("daily")).toContain("temperature_2m_max");
     expect(url.searchParams.get("temperature_unit")).toBe("celsius");
+    expect(url.searchParams.get("current")).toContain("cloud_cover");
+    expect(url.searchParams.get("current")).toContain("wind_direction_10m");
+  });
+
+  it("renders a decorative sky and sets the text tone on <html>", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(makeForecast()))));
+    const { container } = render(<App />);
+    await screen.findByRole("heading", { name: "7-day forecast" });
+    expect(container.querySelector(".sky")).toHaveAttribute("aria-hidden", "true");
+    expect(["light", "dark"]).toContain(document.documentElement.dataset.tone);
+    expect(document.documentElement.style.getPropertyValue("--sky-top")).toMatch(/^#[0-9a-f]{6}$/);
   });
 
   it("requests the saved location and unit from localStorage", async () => {

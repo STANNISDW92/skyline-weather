@@ -8,7 +8,7 @@ export async function fetchForecast({ lat, lon }, unit, signal) {
   const f = unit === "F";
   const url = FORECAST_URL + "?" + new URLSearchParams({
     latitude: lat, longitude: lon, timezone: "auto", forecast_days: 7,
-    current: "temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day",
+    current: "temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m,cloud_cover,weather_code,is_day",
     hourly: "temperature_2m,precipitation_probability,weather_code,is_day",
     daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset",
     temperature_unit: f ? "fahrenheit" : "celsius",

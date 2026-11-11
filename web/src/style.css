@@ -1,93 +1,198 @@
-/* Layout: one centered column — search, current conditions, 24-hour chart, 7-day list */
+/* Layout: one centered column — search, current conditions, 24-hour chart, 7-day list —
+   floating as liquid-glass panels over a live sky (see components/Sky.jsx). */
+
+/* Sky colours are set on <html> from the scene and animate between states. */
+@property --sky-top { syntax: "<color>"; inherits: true; initial-value: #0a1630; }
+@property --sky-mid { syntax: "<color>"; inherits: true; initial-value: #142650; }
+@property --sky-bottom { syntax: "<color>"; inherits: true; initial-value: #24306a; }
+
+/* Text and glass tokens follow the brightness of the sky behind them (data-tone on <html>),
+   not the OS colour scheme: a bright noon sky gets dark text, a night or storm sky light text. */
 :root {
-  --bg: #eef2f6;
-  --surface: #ffffff;
-  --fg: #16212e;
-  --muted: #5d6b7c;
-  --line: #d6dee8;
-  --accent: #2f6fd6;
-  --warm: #e0802b;
-  --rain: #3a8fd1;
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0e141c; --surface: #17202b; --fg: #e6edf5; --muted: #93a2b4;
-    --line: #2a3644; --accent: #6ea2f2; --warm: #f0a35e; --rain: #6bb4ea;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0e141c; --surface: #17202b; --fg: #e6edf5; --muted: #93a2b4;
-  --line: #2a3644; --accent: #6ea2f2; --warm: #f0a35e; --rain: #6bb4ea;
+  --radius: 26px;
+
+  /* dark tone (default until the first scene is applied) */
+  --fg: #f3f7fc;
+  --muted: #c3cfdd;
+  --line: rgb(255 255 255 / .16);
+  --accent: #8cbcff;
+  --warm: #ffb466;
+  --rain: #86c8ff;
+  --surface: #1b2638;
+  --track: rgb(255 255 255 / .16);
+  --error: #ffb4a9;
+  --glass: rgb(22 30 46 / .44);
+  --glass-2: rgb(22 30 46 / .20);
+  --glass-strong: rgb(20 27 40 / .82);
+  --rim: rgb(255 255 255 / .5);
+  --rim-soft: rgb(255 255 255 / .12);
+  --sheen: rgb(255 255 255 / .14);
+  --shadow: rgb(0 0 0 / .32);
+  --on-sky-shadow: 0 1px 3px rgb(0 0 0 / .45);
   color-scheme: dark;
 }
+:root[data-tone="light"] {
+  --fg: #0d1a2a;
+  --muted: #34465b;
+  --line: rgb(13 26 42 / .12);
+  --accent: #1a5ccc;
+  --warm: #c9620f;
+  --rain: #1768b8;
+  --surface: #ffffff;
+  --track: rgb(13 26 42 / .12);
+  --error: #a3211a;
+  --glass: rgb(255 255 255 / .40);
+  --glass-2: rgb(255 255 255 / .18);
+  --glass-strong: rgb(255 255 255 / .86);
+  --rim: rgb(255 255 255 / .9);
+  --rim-soft: rgb(255 255 255 / .35);
+  --sheen: rgb(255 255 255 / .45);
+  --shadow: rgb(20 40 70 / .18);
+  --on-sky-shadow: 0 1px 2px rgb(255 255 255 / .55);
+  color-scheme: light;
+}
+
+/* Only animate sky changes after the first scene is applied, so a page load doesn't fade in from the defaults. */
+:root[data-sky-ready] { transition: --sky-top 2.5s ease, --sky-mid 2.5s ease, --sky-bottom 2.5s ease; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; }
+html { background: var(--sky-bottom); }
 body {
-  background: var(--bg); color: var(--fg);
+  min-height: 100dvh;
+  background: transparent; color: var(--fg);
   font: 15px/1.5 var(--font-body);
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 24px 48px;
 }
-main { max-width: 720px; margin: 0 auto; display: grid; gap: 20px; }
+main { position: relative; max-width: 720px; margin: 0 auto; display: grid; gap: 20px; }
 h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
 h2 { font-size: 13px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .num { font-variant-numeric: tabular-nums; }
 
-/* Top bar */
-.top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
-.brand { font-family: var(--font-display); font-weight: 700; font-size: 18px; }
+/* ---------------------------------------------------------------- Sky */
+.sky {
+  position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  background: linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-mid) 55%, var(--sky-bottom) 100%);
+}
+.sky-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sun {
+  --size: calc(44px + 14px * var(--sun-low, 0));
+  position: absolute; left: var(--sun-x); top: var(--sun-y);
+  width: var(--size); height: var(--size); margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  transition: left 2.5s ease, top 2.5s ease, opacity 2.5s ease;
+}
+.sun::before, .sun::after { content: ""; position: absolute; border-radius: 50%; }
+/* Glow: one soft radial falloff from the disk outwards (larger and warmer near the horizon). */
+.sun::before {
+  inset: calc(var(--size) * (-3 - 3 * var(--sun-low, 0)));
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--sun-color) 75%, transparent) 0,
+    color-mix(in srgb, var(--sun-color) 35%, transparent) 14%,
+    color-mix(in srgb, var(--sun-color) 12%, transparent) 35%,
+    transparent 70%);
+}
+/* Disk: hidden behind thick cloud, where only the glow shows through. */
+.sun::after {
+  inset: 0; opacity: var(--sun-disk, 1); transition: opacity 2.5s ease;
+  background: radial-gradient(circle, #fffef8 0 55%, color-mix(in srgb, var(--sun-color) 70%, #fff) 80%, var(--sun-color) 100%);
+}
+
+/* ---------------------------------------------------------------- Liquid glass
+   Translucent tint + heavy backdrop blur/saturation, a bright specular rim that is
+   strongest top-left, a soft inner sheen, and a lifted shadow. */
+.now, .panel, .btn, .units, .status, input[type="search"] {
+  background:
+    linear-gradient(160deg, var(--sheen), transparent 38%),
+    linear-gradient(135deg, var(--glass), var(--glass-2));
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  border: 0;
+  box-shadow:
+    inset 0 1px 0 var(--rim),
+    inset 0 0 0 1px var(--rim-soft),
+    inset 0 -1px 1px rgb(255 255 255 / .06),
+    0 12px 36px -8px var(--shadow);
+}
+/* Big panels get a gradient rim (bright top-left and bottom-right, clear in between). */
+.now, .panel { position: relative; isolation: isolate; border-radius: var(--radius); }
+.now::before, .panel::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.25px; pointer-events: none;
+  background: linear-gradient(140deg, var(--rim) 0%, transparent 28%, transparent 62%, var(--rim-soft) 82%, var(--rim) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.now::after, .panel::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+  background: radial-gradient(120% 70% at 15% -10%, var(--sheen), transparent 55%);
+  opacity: .8;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .now, .panel, .btn, .units, .status, input[type="search"] { background: var(--glass-strong); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .now, .panel, .btn, .units, .status, input[type="search"], .results { background: var(--glass-strong); }
+}
+
+/* ---------------------------------------------------------------- Top bar */
+.top { position: relative; z-index: 10; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 18px; text-shadow: var(--on-sky-shadow); }
 .controls { display: flex; gap: 8px; flex: 1 1 320px; justify-content: flex-end; }
 .search { position: relative; flex: 1 1 220px; max-width: 360px; }
 input[type="search"] {
-  width: 100%; padding: 10px 14px; border-radius: 10px;
-  border: 1px solid var(--line); background: var(--surface); color: var(--fg); font: inherit;
+  width: 100%; padding: 11px 16px; border-radius: 999px;
+  color: var(--fg); font: inherit;
 }
+input[type="search"]::placeholder { color: var(--muted); opacity: 1; }
 input[type="search"]:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .results {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
-  list-style: none; margin: 0; padding: 4px; background: var(--surface);
-  border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / .12);
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 5;
+  list-style: none; margin: 0; padding: 6px; border-radius: 18px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: inset 0 1px 0 var(--rim), inset 0 0 0 1px var(--rim-soft), 0 18px 40px -10px var(--shadow);
 }
-.results button { width: 100%; text-align: left; padding: 8px 10px; border: 0; background: none; color: var(--fg); font: inherit; border-radius: 6px; cursor: pointer; }
-.results button:hover, .results button:focus-visible { background: var(--bg); }
+.results button { width: 100%; text-align: left; padding: 8px 12px; border: 0; background: none; color: var(--fg); font: inherit; border-radius: 12px; cursor: pointer; }
+.results button:hover, .results button:focus-visible { background: var(--track); }
 .results small { color: var(--muted); }
 .btn {
-  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
-  background: var(--surface); color: var(--fg); font: inherit; cursor: pointer; white-space: nowrap;
+  padding: 11px 16px; border-radius: 999px;
+  color: var(--fg); font: inherit; cursor: pointer; white-space: nowrap;
+  transition: transform .15s ease;
 }
-.btn:hover { border-color: var(--accent); }
-.units { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.units button { padding: 10px 12px; border: 0; background: var(--surface); color: var(--muted); font: inherit; cursor: pointer; }
-.units button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.btn:hover { box-shadow: inset 0 1px 0 var(--rim), inset 0 0 0 1px var(--accent), 0 12px 36px -8px var(--shadow); }
+.btn:active { transform: scale(.97); }
+.units { display: inline-flex; padding: 3px; border-radius: 999px; }
+.units button { padding: 8px 12px; border: 0; border-radius: 999px; background: none; color: var(--muted); font: inherit; cursor: pointer; }
+.units button[aria-pressed="true"] { background: var(--accent); color: var(--surface); box-shadow: inset 0 1px 0 rgb(255 255 255 / .35); }
 
-/* Current conditions */
+/* ---------------------------------------------------------------- Current conditions */
 .now {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
   padding: 24px; display: grid; grid-template-columns: 1fr auto; gap: 16px 24px; align-items: center;
 }
 .place { font-size: 22px; }
 .place small { display: block; font-family: var(--font-body); font-size: 13px; font-weight: 400; color: var(--muted); }
 .temp { font-family: var(--font-display); font-size: clamp(56px, 14vw, 88px); line-height: 1; font-weight: 500; }
 .cond { font-size: 17px; font-weight: 500; }
-.big-icon { width: 96px; height: 96px; grid-row: span 2; }
+.big-icon { width: 96px; height: 96px; grid-row: span 2; filter: drop-shadow(0 6px 12px var(--shadow)); }
 .facts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
 .facts div { display: grid; }
 .facts span { font-size: 12px; color: var(--muted); }
 .facts b { font-weight: 600; font-size: 16px; }
 
-/* Hourly chart */
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 12px; }
+/* ---------------------------------------------------------------- Hourly chart */
+.panel { padding: 20px; display: grid; gap: 12px; }
 .chart-wrap { overflow-x: auto; }
 .chart-wrap svg { display: block; min-width: 640px; width: 100%; height: auto; }
 .chart-wrap text { fill: var(--muted); font: 11px var(--font-body); }
 .chart-wrap .tlabel { fill: var(--fg); font-weight: 600; }
 
-/* Daily list */
+/* ---------------------------------------------------------------- Daily list */
 .days { list-style: none; margin: 0; padding: 0; display: grid; }
 .day { display: grid; grid-template-columns: 56px 32px 44px 1fr; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
 .day:first-child { border-top: 0; }
@@ -95,17 +200,21 @@ input[type="search"]:focus-visible, button:focus-visible { outline: 2px solid va
 .day .pop { font-size: 12px; color: var(--rain); text-align: right; }
 .range { display: grid; grid-template-columns: 40px 1fr 40px; gap: 10px; align-items: center; }
 .range .lo { color: var(--muted); text-align: right; }
-.track { position: relative; height: 6px; border-radius: 3px; background: var(--bg); }
+.track { position: relative; height: 6px; border-radius: 3px; background: var(--track); }
 .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--warm)); }
 
-.status { color: var(--muted); padding: 8px 0; }
-.status.error { color: #c0392b; }
-footer { font-size: 12px; color: var(--muted); text-align: center; }
+.status { justify-self: start; margin: 0; padding: 8px 16px; border-radius: 999px; color: var(--fg); }
+.status.error { color: var(--error); }
+footer { font-size: 12px; color: var(--fg); text-align: center; text-shadow: var(--on-sky-shadow); }
 footer a { color: inherit; }
 
 @media (max-width: 480px) {
+  :root { --radius: 22px; }
   .now { grid-template-columns: 1fr; }
   .big-icon { grid-row: auto; width: 72px; height: 72px; }
   .day { grid-template-columns: 44px 28px 36px 1fr; gap: 8px; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  :root, .sun { transition: none !important; }
+}

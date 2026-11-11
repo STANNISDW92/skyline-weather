@@ -39,8 +39,8 @@ A React 19 single-page app bundled with Vite (`@vitejs/plugin-react`). `index.ht
 
 - `src/api.js` — all Open-Meteo calls: `fetchForecast(loc, unit, signal)` and `searchCities(name, signal)` (normalizes results to `{ name, admin, country, lat, lon }`).
 - `src/weather.js` — pure helpers: the `WMO` code table (`wmo(code)` → `[label, iconKind]`), `fmtTemp` / `fmtTime`, and `next24HourIndices(times, currentTime)` (which hours the chart shows). Keep testable logic here rather than inside components.
-- `src/App.jsx` — owns all state and the header controls (location button, °C/°F toggle).
-- `src/components/` — `CitySearch`, `CurrentConditions`, `HourlyChart`, `DailyForecast`, plus `WeatherIcon` (`IconShapes` is the bare SVG contents, reused inside the hourly chart's SVG).
+- `src/App.jsx` — owns all state, the header controls (location button, °C/°F toggle) and the sky scene.
+- `src/components/` — `CitySearch`, `CurrentConditions`, `HourlyChart`, `DailyForecast`, `Sky`, plus `WeatherIcon` (`IconShapes` is the bare SVG contents, reused inside the hourly chart's SVG).
 
 **Data flow.** `App` holds `unit` and `loc`; a `useEffect` on `[loc, unit]` calls `fetchForecast` (aborting the previous request on change) and stores the response in `data`. The location/unit that produced the current `data` are kept separately (`dataLoc`, `dataUnit`), so if a refetch fails the old forecast stays on screen with its matching labels. The three display components are pure functions of `data`; nothing renders until the first fetch succeeds. Status and error messages all go through `showStatus(msg, isError)`; `CitySearch` reports failures via its `onError` prop.
 
@@ -50,7 +50,13 @@ A React 19 single-page app bundled with Vite (`@vitejs/plugin-react`). `index.ht
 - **Times** come back in the location's local timezone (`timezone: "auto"`).
 - **Charts are hand-built SVG** — the 24-hour chart (fixed 720×210 viewBox, labels every 3rd hour) and the 7-day range bars (positioned by percentage across the week's min/max). No charting library.
 
-**Theming.** All colors are CSS custom properties on `:root` in `style.css`, with dark-mode overrides under `prefers-color-scheme: dark` (guarded by `:root:not([data-theme="light"])`) and duplicated under `:root[data-theme="dark"]`. Icons and charts reference these variables (`var(--accent)`, `var(--warm)`, `var(--rain)`, etc.), so new colors should be added as tokens in both light and dark blocks rather than hard-coded. Styling is plain class names in `style.css`; the JSX keeps the original class names and markup structure.
+**Live sky background.** `src/scene.js` (pure, unit-tested) turns location + the current minute + Open-Meteo `current` (incl. `cloud_cover`, `wind_direction_10m`) into a scene: sun/moon position and moon phase (SunCalc-style formulas, checked against real sunrise/sunset and solstice/lunar-phase reference values in `scene.test.js`), sky gradient, cloud lighting, precipitation type/intensity, lightning, fog and wind. `App` recomputes it every minute (`useNow`) and silently refetches the forecast every 15 min; it writes `--sky-top/mid/bottom` and `data-tone` onto `<html>` in a layout effect. `components/Sky.jsx` renders the CSS gradient, the sun (CSS element) and a canvas driven by `src/sky/engine.js` (clouds, stars, moon, rain/drizzle/snow/hail, fog, lightning). The sky uses the forecast's location (`dataLoc`), not the pending one.
+
+- `prefers-reduced-motion` → the engine draws one static frame per scene change (no animation, no lightning flashes).
+- jsdom has no canvas: `src/test/setup.js` stubs `getContext` to return null and the engine no-ops (`engine.ok`).
+- Sky colour transitions only start after the first forecast arrives (`data-sky-ready`), so the first real weather appears without a fade.
+
+**Theming.** Colour tokens follow the sky, not the OS colour scheme: `data-tone="light"|"dark"` on `<html>` (from the sky's luminance in `computeScene`) switches text, accent and glass tokens in `style.css`. Panels and controls are "liquid glass": translucent `--glass` tint, `backdrop-filter: blur() saturate()`, inset rim highlights, and on `.now`/`.panel` a gradient rim (`::before`) and sheen (`::after`). New colours must be defined for both tones. There are fallbacks for no `backdrop-filter` support and `prefers-reduced-transparency`. Icons and charts use the tokens (`var(--accent)`, `var(--warm)`, `var(--rain)`, `var(--track)`, …), so don't hard-code colours.
 
 **Text rendering gotcha.** Values like `"7:05 AM / 4:57 PM"` are built as a single template string rather than JSX like `{a} / {b}`: separate text nodes shape slightly differently in Chrome, which shifted pixels compared to the pre-React version.
 

@@ -13,12 +13,13 @@ export function makeForecast(overrides = {}) {
     timezone: "America/Toronto", timezone_abbreviation: "GMT-5", utc_offset_seconds: -18000,
     current_units: {
       time: "iso8601", interval: "seconds", temperature_2m: "°C", apparent_temperature: "°C",
-      relative_humidity_2m: "%", wind_speed_10m: "km/h", weather_code: "wmo code", is_day: ""
+      relative_humidity_2m: "%", wind_speed_10m: "km/h", wind_direction_10m: "°", cloud_cover: "%",
+      weather_code: "wmo code", is_day: ""
     },
     current: {
       time: "2026-11-10T18:15", interval: 900,
       temperature_2m: 10.4, apparent_temperature: 7.1, relative_humidity_2m: 60,
-      wind_speed_10m: 9.3, weather_code: 0, is_day: 0
+      wind_speed_10m: 9.3, wind_direction_10m: 270, cloud_cover: 5, weather_code: 0, is_day: 0
     },
     hourly: {
       time: hourlyTimes,
